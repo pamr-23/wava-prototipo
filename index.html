@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MoCap Prototipo - Cuerpo Humano Dinámico</title>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0f141d; color: #fff; }
+        #panel-control {
+            position: absolute; top: 15px; left: 15px; width: 320px;
+            background: rgba(20, 27, 38, 0.95); padding: 20px; border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5); border: 1px solid #2a3649;
+            z-index: 10;
+        }
+        #telemetria-cuerpo {
+            position: absolute; top: 15px; right: 15px; width: 300px; max-height: 85vh; overflow-y: auto;
+            background: rgba(20, 27, 38, 0.9); padding: 15px; border-radius: 12px;
+            font-family: monospace; font-size: 11px; border: 1px solid #2a3649;
+            z-index: 10;
+        }
+        h2 { margin: 0 0 15px 0; font-size: 16px; color: #3b82f6; text-transform: uppercase; letter-spacing: 1px; }
+        .control-group { margin-bottom: 12px; }
+        label { display: block; font-size: 12px; color: #94a3b8; margin-bottom: 4px; }
+        input, select, button {
+            width: 100%; padding: 8px; background: #1e293b; border: 1px solid #334155;
+            color: #fff; border-radius: 6px; box-sizing: border-box; font-size: 13px;
+        }
+        button { background: #3b82f6; font-weight: bold; cursor: pointer; border: none; margin-top: 5px; transition: 0.2s; }
+        button:hover { background: #2563eb; }
+        .sensor-card { background: #1e293b; padding: 8px; margin-bottom: 6px; border-radius: 6px; border-left: 4px solid #3b82f6; }
+        .live-val { color: #38bdf8; font-weight: bold; }
+    </style>
+    <script src="https://cloudflare.com"></script>
+</head>
+<body>
+
+    <!-- PANEL DE ENTRADA DE DATOS -->
+    <div id="panel-control">
+        <h2>Configuración Inicial</h2>
+        <div class="control-group">
+            <label>Masa Total del Cuerpo (kg):</label>
+            <input type="number" id="masa-total" value="70" min="1">
+        </div>
+        <div class="control-group">
+            <label>Número de Sensores IMU Disponibles:</label>
+            <select id="num-sensores" onchange="actualizarInterfazSensores()">
+                <option value="1">1 Sensor (Solo Torso/Centro)</option>
+                <option value="3">3 Sensores (Torso + Brazos)</option>
+                <option value="5" selected>5 Sensores (Torso + Extremidades completas)</option>
+            </select>
+        </div>
+        <button onclick="inicializarModeloYConexion()">Aplicar y Conectar</button>
+    </div>
+
+    <!-- PANEL DE TELEMETRÍA DINÁMICA -->
+    <div id="telemetria-cuerpo">
+        <h2>Fuerzas en Tiempo Real</h2>
+        Status: <span id="status" style="color: #ef4444; font-weight: bold;">Desconectado</span><br><br>
+        <div id="contenedor-sensores-live"></div>
+    </div>
+
+    <script>
+        // --- 1. CONFIGURACIÓN DE LA ESCENA 3D ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0f141d);
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Luces para ver el volumen del cuerpo humano virtual
+        const light = new THREE.AmbientLight(0xffffff, 0.6); scene.add(light);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8); dirLight.position.set(5, 10, 7); scene.add(dirLight);
+
+        const gridHelper = new THREE.GridHelper(40, 40, 0x334155, 0x1e293b); gridHelper.position.y = -3; scene.add(gridHelper);
+        camera.position.set(0, 2, 6);
+
+        // --- 2. MAPEO Y BIOMECÁNICA DEL CUERPO HUMANO ---
+        // Proporciones estándar de la masa corporal según la anatomía médica (Borelli/Dempster)
+        const proporcionesMasa = {
+            "torso": 0.50,       // 50% de la masa total
+            "brazo_der": 0.08,   // 8% cada brazo
+            "brazo_izq": 0.08,
+            "pierna_der": 0.17,  // 17% cada pierna
+            "pierna_izq": 0.17
+        };
+
+        let esqueleto = {}; // Guardará las referencias a las mallas 3D de cada parte del cuerpo
+        let masaConfigurada = 70;
+        let socket;
+
+        // Mapeo dinámico de los sensores según cuántos agregue el usuario
+        const configuracionesDeAsignacion = {
+            1: ["torso"],
+            3: ["torso", "brazo_der", "brazo_izq"],
+            5: ["torso", "brazo_der", "brazo_izq", "pierna_der", "pierna_izq"]
+        };
+
+        // Crear una parte del cuerpo visual (Cilindros/Esferas estilizados)
+        function crearParteCuerpo(colorHex, ancho, alto) {
+            const grupo = new THREE.Group();
+            const geometry = new THREE.CylinderGeometry(ancho, ancho, alto, 16);
+            const material = new THREE.MeshStandardMaterial({ color: colorHex, roughness: 0.4 });
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.position.y = alto / 2; // Ajustar pivote a la articulación superior
+            grupo.add(mesh);
+            return grupo;
+        }
+
+        function construirCuerpoHumanoVirtual(numSensores) {
+            // Limpiar cuerpo anterior si existe
+            if(esqueleto.torso) {
+                Object.values(esqueleto).forEach(part => scene.remove(part));
+            }
+            esqueleto = {};
+
+            // 1. Torso / Raíz
+            esqueleto["torso"] = crearParteCuerpo(0x3b82f6, 0.4, 1.8); // Azul
+            esqueleto["torso"].position.set(0, 0, 0);
+            scene.add(esqueleto["torso"]);
+
+            // 2. Extremidades opcionales según la cantidad de sensores insertados
+            if (numSensores >= 3) {
+                esqueleto["brazo_der"] = crearParteCuerpo(0x10b981, 0.15, 1.2); // Verde
+                esqueleto["brazo_der"].position.set(-0.6, 1.6, 0);
+                esqueleto["brazo_der"].rotation.z = -0.2; // Postura base relajada
+                scene.add(esqueleto["brazo_der"]);
+
+                esqueleto["brazo_izq"] = crearParteCuerpo(0x10b981, 0.15, 1.2);
+                esqueleto["brazo_izq"].position.set(0.6, 1.6, 0);
+                esqueleto["brazo_izq"].rotation.z = 0.2;
+                scene.add(esqueleto["brazo_izq"]);
+            }
+
+            if (numSensores >= 5) {
+                esqueleto["pierna_der"] = crearParteCuerpo(0xf59e0b, 0.2, 1.5); // Naranja
+                esqueleto["pierna_der"].position.set(-0.3, 0, 0);
+                scene.add(esqueleto["pierna_der"]);
+
+                esqueleto["pierna_izq"] = crearParteCuerpo(0xf59e0b, 0.2, 1.5);
+                esqueleto["pierna_izq"].position.set(0.3, 0, 0);
+                scene.add(esqueleto["pierna_izq"]);
+            }
+        }
+
+        // --- 3. INTERFAZ Y PROCESAMIENTO DINÁMICO ---
+        function actualizarInterfazSensores() {
+            const num = parseInt(document.getElementById('num-sensores').value);
+            const contenedor = document.getElementById('contenedor-sensores-live');
+            contenedor.innerHTML = "";
+            
+            configuracionesDeAsignacion[num].forEach((parte, index) => {
+                contenedor.innerHTML += `
+                    <div class="sensor-card">
+                        <strong>Sensor #${index + 1} (${parte.toUpperCase()}):</strong><br>
+                        Fuerza: <span id="f-${parte}" class="live-val">0.00</span> N<br>
+                        Giro Z: <span id="r-${parte}" class="live-val">0.0</span>°
+                    </div>
+                `;
+            });
+            construirCuerpoHumanoVirtual(num);
+        }
+
+        function inicializarModeloYConexion() {
+            masaConfigurada = parseFloat(document.getElementById('masa-total').value);
+            const numSensores = parseInt(document.getElementById('num-sensores').value);
+            
+            actualizarInterfazSensores();
+
+            // Configurar canal WebSocket (Simulación local o IP del ESP32 concentrador)
+            if(socket) socket.close();
+            
+            // Reemplaza con la IP real del microcontrolador que reciba todas las IMUs
+            socket = new WebSocket("ws://192.168.1.100/ws"); 
+
+            socket.onopen = () => {
+                document.getElementById('status').innerText = "Conectado";
+                document.getElementById('status').style.color = "#10b981";
+            };
+
+            socket.onclose = () => {
+                document.getElementById('status').innerText = "Desconectado (Simulando Local)";
+                document.getElementById('status').style.color = "#f59e0b";
+                activarSimuladorLocal(); // Si no hay hardware conectado, simula movimiento para probar la matemática
+            };
+
+            socket.onmessage = (event) => {
+                const paquete = JSON.parse(event.data);
+                procesarDatosMoCap(paquete);
+            };
+        }
+
+        function procesarDatosMoCap(paquete) {
+            // El paquete esperado debe contener lecturas indexadas por cada sensor activo, ej:
+            // {"torso": {"ax":0.1, "pitch":15}, "brazo_der": {"ax":0.8, "pitch":45}, ...}
+            
+            const partesActivas = configuracionesDeAsignacion[parseInt(document.getElementById('num-sensores').value)];
+
+            partesActivas.forEach(parte => {
+                if (paquete[parte] && esqueleto[parte]) {
+                    const datosSensor = paquete[parte];
+                    
+                    // 1. Mover la rotación del hueso en 3D
+                    esqueleto[parte].rotation.x = (datosSensor.pitch || 0) * (Math.PI / 180);
+                    esqueleto[parte].rotation.z = (datosSensor.roll || 0) * (Math.PI / 180);
