@@ -1,205 +1,77 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MoCap Prototipo - Cuerpo Humano Dinámico</title>
-    <style>
-        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0f141d; color: #fff; }
-        #panel-control {
-            position: absolute; top: 15px; left: 15px; width: 320px;
-            background: rgba(20, 27, 38, 0.95); padding: 20px; border-radius: 12px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.5); border: 1px solid #2a3649;
-            z-index: 10;
-        }
-        #telemetria-cuerpo {
-            position: absolute; top: 15px; right: 15px; width: 300px; max-height: 85vh; overflow-y: auto;
-            background: rgba(20, 27, 38, 0.9); padding: 15px; border-radius: 12px;
-            font-family: monospace; font-size: 11px; border: 1px solid #2a3649;
-            z-index: 10;
-        }
-        h2 { margin: 0 0 15px 0; font-size: 16px; color: #3b82f6; text-transform: uppercase; letter-spacing: 1px; }
-        .control-group { margin-bottom: 12px; }
-        label { display: block; font-size: 12px; color: #94a3b8; margin-bottom: 4px; }
-        input, select, button {
-            width: 100%; padding: 8px; background: #1e293b; border: 1px solid #334155;
-            color: #fff; border-radius: 6px; box-sizing: border-box; font-size: 13px;
-        }
-        button { background: #3b82f6; font-weight: bold; cursor: pointer; border: none; margin-top: 5px; transition: 0.2s; }
-        button:hover { background: #2563eb; }
-        .sensor-card { background: #1e293b; padding: 8px; margin-bottom: 6px; border-radius: 6px; border-left: 4px solid #3b82f6; }
-        .live-val { color: #38bdf8; font-weight: bold; }
-    </style>
-    <script src="https://cloudflare.com"></script>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>WAVA · Captura corporal en vivo</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+:root{color-scheme:dark;--bg:#121a16;--panel:#1b2521;--line:#35423c;--muted:#a9b7ae;--ink:#f1f5ef;--lime:#c9f27a;--cyan:#81d7c8;--orange:#f0bd68}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.4 "Segoe UI",Arial,sans-serif}header{height:72px;padding:12px 22px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:15px}h1{font-size:20px;margin:2px 0}.eyebrow{font:11px ui-monospace,monospace;color:var(--cyan);letter-spacing:.08em;text-transform:uppercase}.sub{font-size:12px;color:var(--muted)}main{height:calc(100vh - 72px);min-height:600px;display:grid;grid-template-columns:330px minmax(320px,1fr) 310px}.panel{padding:18px;overflow:auto;background:var(--panel);border-right:1px solid var(--line)}.panel.right{border-right:0;border-left:1px solid var(--line)}h2{font-size:15px;margin:0 0 4px}.section{margin:20px 0 9px;color:var(--cyan);font:11px ui-monospace,monospace;text-transform:uppercase;letter-spacing:.08em}.desc{color:var(--muted);font-size:12px;margin:0 0 13px}label{display:block;color:#dfe6e0;font-size:12px;margin:10px 0 5px}input,select,button{width:100%;background:#131c18;color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:9px 10px;font:13px "Segoe UI",Arial,sans-serif}button{cursor:pointer;font-weight:650}button:hover{filter:brightness(1.1)}button.primary{background:var(--lime);color:#17200f;border-color:var(--lime)}.row{display:grid;grid-template-columns:1fr 1fr;gap:9px}.buttons{display:flex;gap:8px;margin-top:12px}.buttons button{flex:1}.status{font:11px ui-monospace,monospace;color:var(--orange);margin-top:8px;min-height:15px}.canvas-wrap{position:relative;min-width:0;background:radial-gradient(ellipse at center,#23312a 0%,#151e19 64%,#121a16 100%)}#view{position:absolute;inset:0}#view canvas{width:100%;height:100%;display:block}.view-label{position:absolute;top:16px;left:18px;pointer-events:none}.view-label strong{font-size:16px}.view-label div{color:var(--muted);font:11px ui-monospace,monospace;margin-top:4px}.legend{position:absolute;bottom:14px;left:16px;color:var(--muted);font-size:11px;background:#111a16cc;padding:7px 10px;border-radius:6px}.metric-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.metric{padding:10px;background:#17211c;border:1px solid var(--line);border-radius:8px}.metric span{font-size:11px;color:var(--muted);display:block}.metric b{font:18px ui-monospace,monospace;color:var(--lime)}.metric small{color:var(--muted);font-size:11px}.sensor{display:flex;align-items:center;justify-content:space-between;padding:9px 10px;margin:6px 0;background:#17211c;border:1px solid var(--line);border-radius:7px}.sensor em{font-style:normal;color:var(--muted);font:11px ui-monospace,monospace}.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--cyan);margin-right:8px}.note{border-left:3px solid var(--orange);background:#2a2c25;color:#e1e5dd;padding:10px 11px;margin-top:13px;font-size:11px}.note strong{color:var(--orange)}.angle{font:12px ui-monospace,monospace;color:var(--lime)}.small-btn{font-size:12px;padding:8px;margin-top:8px}.error{position:absolute;inset:0;display:grid;place-items:center;color:var(--orange);padding:32px;text-align:center}@media(max-width:1050px){main{grid-template-columns:290px minmax(300px,1fr)}.panel.right{grid-column:1/-1;border-left:0;border-top:1px solid var(--line);display:grid;grid-template-columns:1fr 1fr;gap:0 16px}.panel.right h2,.panel.right>.desc{grid-column:1/-1}.canvas-wrap{min-height:520px}main{height:auto;min-height:calc(100vh - 72px)}}@media(max-width:680px){header{height:auto;align-items:flex-start;flex-direction:column}main{display:flex;flex-direction:column;height:auto}.panel{border:0!important;border-bottom:1px solid var(--line)!important}.canvas-wrap{height:65vh;min-height:440px;order:-1}.panel.right{display:block}}
+</style>
+<style>
+.sensor{display:block!important;padding:9px 10px;margin:6px 0;background:#17211c;border:1px solid var(--line);border-radius:7px}.sensor-top{display:flex;justify-content:space-between;align-items:center}.placement{font-size:10px;color:var(--muted);margin:5px 0 0 16px}details{border:1px solid var(--line);border-radius:8px;padding:10px;margin-top:12px}summary{cursor:pointer;color:var(--cyan);font-size:12px}.measure-inputs{display:grid;grid-template-columns:1fr 1fr;gap:0 9px}.measure-inputs label{font-size:11px}details input{padding:7px;font-size:12px}
+</style>
 </head>
 <body>
+<header><div><div class="eyebrow">WAVA · Captura cinemática</div><h1>Maniquí humano en movimiento</h1></div><div class="sub">Vista 3D · medidas escaladas · sensores IMU</div></header>
+<main>
+ <aside class="panel">
+  <h2>Persona y proporciones</h2><p class="desc">Empieza con proporciones promedio o carga medidas individuales para dar forma al maniquí.</p>
+  <div class="row"><div><label for="height">Estatura (cm)</label><input id="height" type="number" min="100" max="230" value="170" step="0.1"></div><div><label for="mass">Masa (kg)</label><input id="mass" type="number" min="20" max="300" value="70" step="0.1"></div></div>
+  <label for="profile">Perfil de estimación</label><select id="profile"><option value="average">Promedio general</option><option value="male">Referencia masculina</option><option value="female">Referencia femenina</option></select>
+  <details id="customMeasures"><summary>Personalizar medidas individuales</summary><p class="desc" style="margin-top:8px">Medidas en cm; registra cada lado por separado.</p><div class="measure-inputs">
+   <div><label for="mUpperR">Brazo sup. derecho</label><input id="mUpperR" type="number" min="1" step="0.1" placeholder="auto"></div><div><label for="mUpperL">Brazo sup. izquierdo</label><input id="mUpperL" type="number" min="1" step="0.1" placeholder="auto"></div>
+   <div><label for="mForeR">Antebrazo derecho</label><input id="mForeR" type="number" min="1" step="0.1" placeholder="auto"></div><div><label for="mForeL">Antebrazo izquierdo</label><input id="mForeL" type="number" min="1" step="0.1" placeholder="auto"></div>
+   <div><label for="mThighR">Muslo derecho</label><input id="mThighR" type="number" min="1" step="0.1" placeholder="auto"></div><div><label for="mThighL">Muslo izquierdo</label><input id="mThighL" type="number" min="1" step="0.1" placeholder="auto"></div>
+   <div><label for="mShinR">Pierna inf. derecha</label><input id="mShinR" type="number" min="1" step="0.1" placeholder="auto"></div><div><label for="mShinL">Pierna inf. izquierda</label><input id="mShinL" type="number" min="1" step="0.1" placeholder="auto"></div>
+   <div><label for="mTrunk">Largo torso</label><input id="mTrunk" type="number" min="1" step="0.1" placeholder="auto"></div><div><label for="mShoulder">Ancho hombros</label><input id="mShoulder" type="number" min="1" step="0.1" placeholder="auto"></div>
+   <div><label for="mHip">Ancho caderas</label><input id="mHip" type="number" min="1" step="0.1" placeholder="auto"></div><div><label for="mDepth">Profundidad torso</label><input id="mDepth" type="number" min="1" step="0.1" placeholder="auto"></div>
+  </div></details>
+  <div class="buttons"><button class="primary" id="apply">Aplicar escala</button><button id="save">Guardar</button></div><div class="status" id="saveStatus"></div>
+  <div class="section">Movimiento de demostración</div><label for="motion">Actividad</label><select id="motion"><option value="idle">Postura neutra</option><option value="curl">Curl de bíceps</option><option value="press">Press sobre cabeza</option><option value="squat">Sentadilla</option><option value="run">Correr</option></select>
+  <div class="buttons"><button class="primary" id="play">▶ Iniciar movimiento</button><button id="pause">Ⅱ Pausar</button></div>
+  <div class="section">Conexión IMU (opcional)</div><label for="wsUrl">WebSocket</label><input id="wsUrl" value="ws://192.168.1.100/ws" placeholder="ws://IP_DEL_HUB/ws"><button class="small-btn" id="connect">Conectar sensores</button><div class="status" id="wsStatus">Desconectado · usando animación local</div>
+  <div class="note"><strong>Proporciones:</strong> con medidas personalizadas, el largo de segmentos y torso se ajusta a la persona. El volumen del maniquí sigue siendo una representación simplificada.</div>
+ </aside>
+ <div class="canvas-wrap"><div id="view"></div><div class="view-label"><strong>Captura corporal</strong><div id="motionLabel">POSTURA NEUTRA · DEMOSTRACIÓN</div></div><div class="legend">Puntos cian: IMU activas · ámbar: posiciones adicionales recomendadas · arrastra para rotar la vista</div></div>
+ <aside class="panel right">
+  <h2>Medidas del modelo</h2><p class="desc" id="measureModeLabel">Valores calculados o personalizados.</p><div class="section">Segmentos individuales</div><div class="metric-grid" id="measurements"></div>
+  <div class="section">Amplitudes</div><div class="metric-grid" id="widths"></div>
+  <div class="section">Ubicación anatómica recomendada · 5 IMU</div><div id="sensors"></div>
+  <div class="note"><strong>Ampliación para puntos clave:</strong> IMU pélvica sobre el sacro (S2, atrás de la cintura, sujeta con cinturón firme). Para muñeca, antebrazo distal dorsal + dorso de la mano en cada lado. Para tobillo, conserva las IMU a mitad de tibia y agrega una en el dorso de cada pie. Los puntos ámbar muestran pelvis, antebrazos distales, manos y pies.</div>
+  <details><summary>Claves para paquetes WebSocket ampliados</summary><div class="placement">Usa orientación en grados en cada clave:</div><pre style="white-space:pre-wrap;font-size:10px;color:var(--cyan)">{"pelvis":{"pitch":0},"antebrazo_der":{"pitch":0},"antebrazo_izq":{"pitch":0},"mano_der":{"pitch":0},"mano_izq":{"pitch":0},"muslo_der":{"pitch":0},"muslo_izq":{"pitch":0},"pie_der":{"pitch":0},"pie_izq":{"pitch":0}}</pre></details>
+  <div class="section">Lecturas de orientación</div><div class="metric-grid" id="angles"></div>
+  <div class="note"><strong>Limitación de hardware:</strong> cada IMU informa orientación del segmento donde está montada. Sin IMUs en codos/rodillas o tracking 3D, las articulaciones intermedias se animan como aproximación, no como lectura directa.</div>
+ </aside>
+</main>
+<script>
+(()=>{
+ const $=id=>document.getElementById(id); const ratio={average:{upper:17.25,fore:15.85,thigh:24.05,shin:25.2,trunk:29.5},male:{upper:17.2,fore:15.7,thigh:23.2,shin:24.7,trunk:30},female:{upper:17.3,fore:16,thigh:24.9,shin:25.7,trunk:29}};
+ const names=['torso','brazo_der','brazo_izq','pierna_der','pierna_izq'];const labels={torso:'Torso',brazo_der:'Brazo derecho',brazo_izq:'Brazo izquierdo',pierna_der:'Pierna derecha',pierna_izq:'Pierna izquierda'};let h=1.7, socket=null, playing=true, start=performance.now(), activeMotion='idle', lastPacket=null, rig={},renderer,scene,camera,root,drag=null;
+ const measureIds={upperR:'mUpperR',upperL:'mUpperL',foreR:'mForeR',foreL:'mForeL',thighR:'mThighR',thighL:'mThighL',shinR:'mShinR',shinL:'mShinL',trunk:'mTrunk',shoulder:'mShoulder',hip:'mHip',depth:'mDepth'};
+ function dims(){const k=ratio[$('profile').value],cm=Number($('height').value)||170;h=cm/100;const d={upperR:h*k.upper/100,upperL:h*k.upper/100,foreR:h*k.fore/100,foreL:h*k.fore/100,thighR:h*k.thigh/100,thighL:h*k.thigh/100,shinR:h*k.shin/100,shinL:h*k.shin/100,trunk:h*k.trunk/100,shoulder:h*.235,hip:h*.18,depth:h*.141,foot:h*.045};for(const key of Object.keys(measureIds)){const v=Number($(measureIds[key]).value);if(v>0)d[key]=v/100}d.upper=(d.upperR+d.upperL)/2;d.fore=(d.foreR+d.foreL)/2;d.thigh=(d.thighR+d.thighL)/2;d.shin=(d.shinR+d.shinL)/2;return d}
+ function renderValues(){const d=dims(),fmt=x=>(x*100).toFixed(1),custom=Object.values(measureIds).some(id=>Number($(id).value)>0),src=custom?'personalizado':'estimado';$('measureModeLabel').textContent=custom?'Medidas individuales aplicadas al maniquí.':'Proporciones antropométricas promedio; abre Personalizar para introducir tus medidas.';$('measurements').innerHTML=[['Brazo sup. der.',d.upperR],['Brazo sup. izq.',d.upperL],['Antebrazo der.',d.foreR],['Antebrazo izq.',d.foreL],['Muslo der.',d.thighR],['Muslo izq.',d.thighL],['Pierna inf. der.',d.shinR],['Pierna inf. izq.',d.shinL],['Largo torso',d.trunk]].map(([a,b])=>`<div class="metric"><span>${a}</span><b>${fmt(b)}</b><small> cm · ${src}</small></div>`).join('');$('widths').innerHTML=[['Ancho hombros',d.shoulder],['Ancho caderas',d.hip],['Profundidad torso',d.depth]].map(([a,b])=>`<div class="metric"><span>${a}</span><b>${fmt(b)}</b><small> cm · ${custom?'personalizado':'aprox.'}</small></div>`).join('');const places=['Centro del esternón, bajo la escotadura (pecho)','Cara lateral del brazo, justo sobre el codo','Cara lateral del brazo, justo sobre el codo','Mitad de la tibia, ligeramente hacia delante','Mitad de la tibia, ligeramente hacia delante'];$('sensors').innerHTML=names.map((n,i)=>`<div class="sensor"><div class="sensor-top"><span><i class="dot"></i>IMU-0${i+1} · ${labels[n]}</span><em>SUGERIDA</em></div><div class="placement">${places[i]}</div></div>`).join('');if(rig.root)updateRig(d)}
+ function material(color,rough=.72){return new THREE.MeshStandardMaterial({color,roughness:rough})}
+ function sphere(parent,pos,scale,color){const m=new THREE.Mesh(new THREE.SphereGeometry(1,24,16),material(color));m.position.set(...pos);m.scale.set(...scale);parent.add(m);return m}
+ function sensorMarker(parent,pos,color){const m=sphere(parent,pos,[.026,.026,.026],color);m.material.emissive=new THREE.Color(color);m.material.emissiveIntensity=.7;return m}
+ function segment(parent,length,r1,r2,color){const p=new THREE.Group();parent.add(p);const mesh=new THREE.Mesh(new THREE.CylinderGeometry(r1,r2,length,18,1),material(color));mesh.position.y=-length/2;p.add(mesh);sphere(p,[0,-length,0],[r1*1.05,r1*1.05,r1*1.05],0xd7c9aa);return p}
+ function createRig(){if(!window.THREE){$('view').innerHTML='<div class="error">No se pudo cargar la librería 3D. Revisa la conexión a internet y vuelve a abrir esta página.</div>';return}scene=new THREE.Scene();scene.background=new THREE.Color(0x152019);camera=new THREE.PerspectiveCamera(37,1,.1,100);camera.position.set(0,1.8,4.8);camera.lookAt(0,.9,0);renderer=new THREE.WebGLRenderer({antialias:true,alpha:false});renderer.setPixelRatio(Math.min(devicePixelRatio,2));$('view').appendChild(renderer.domElement);scene.add(new THREE.HemisphereLight(0xe7f2d9,0x465047,2));const light=new THREE.DirectionalLight(0xffffff,2.1);light.position.set(-3,5,5);scene.add(light);const floor=new THREE.GridHelper(8,32,0x506056,0x29372f);floor.position.y=-.015;scene.add(floor);root=new THREE.Group();scene.add(root);rig.root=root;
+  const d=dims(), lime=0xb5dc68,green=0x7eaa80,teal=0x55968b,gold=0xb89c61,skin=0xd8c8a7;
+  rig.pelvis=sphere(root,[0,0,0],[.17,.115,.105],green);rig.torso=new THREE.Group();root.add(rig.torso);rig.torso.position.y=.08;const chest=sphere(rig.torso,[0,d.trunk*.49,0],[d.shoulder*.46,d.trunk*.52,d.depth*.46],lime);rig.chest=chest;rig.neck=sphere(rig.torso,[0,d.trunk+.045,0],[.055,.09,.055],skin);rig.head=sphere(rig.torso,[0,d.trunk+.19,0],[.105,.145,.095],skin);
+  rig.arms={};for(const side of [-1,1]){const key=side<0?'brazo_der':'brazo_izq',ul=side<0?d.upperR:d.upperL,fl=side<0?d.foreR:d.foreL,sh=new THREE.Group();rig.torso.add(sh);sh.position.set(side*d.shoulder*.48,d.trunk*.91,0);sphere(sh,[0,0,0],[.075,.07,.075],skin);const upper=segment(sh,ul,.07,.052,teal);const active=sensorMarker(upper,[side*.05,-ul*.78,.045],0x55e0d0);const elbow=new THREE.Group();upper.add(elbow);elbow.position.y=-ul;const fore=segment(elbow,fl,.052,.035,teal);const foreMark=sensorMarker(fore,[0,-fl*.88,.035],0xf0bd68);const wrist=new THREE.Group();fore.add(wrist);wrist.position.y=-fl;const hand=sphere(wrist,[0,-.045,0],[.04,.075,.03],skin);const handMark=sensorMarker(wrist,[0,-.01,.032],0xf0bd68);rig.arms[key]={shoulder:sh,upper,elbow,fore,foreMark,wrist,hand,active,handMark,side}}
+  rig.legs={};for(const side of [-1,1]){const key=side<0?'pierna_der':'pierna_izq',tl=side<0?d.thighR:d.thighL,sl=side<0?d.shinR:d.shinL,hip=new THREE.Group();root.add(hip);hip.position.set(side*d.hip*.34,-.04,0);sphere(hip,[0,0,0],[.09,.09,.09],skin);const thigh=segment(hip,tl,.095,.066,gold);const knee=new THREE.Group();thigh.add(knee);knee.position.y=-tl;const shin=segment(knee,sl,.065,.038,gold);const active=sensorMarker(shin,[.04,-sl*.5,.04],0x55e0d0);const ankle=new THREE.Group();shin.add(ankle);ankle.position.y=-sl;const foot=sphere(ankle,[0,-.025,.055],[.045,.04,.1],skin);const footMark=sensorMarker(ankle,[0,.01,.075],0xf0bd68);rig.legs[key]={hip,thigh,knee,shin,ankle,foot,active,footMark,side}}
+  rig.pelvisMark=sensorMarker(root,[0,.015,-.115],0xf0bd68);rig.torsoMark=sensorMarker(rig.torso,[0,d.trunk*.66,d.depth*.47],0x55e0d0);
+  rig.baseY=d.thigh+d.shin+d.foot+.05;root.position.y=rig.baseY;const v=$('view');const resize=()=>{const w=v.clientWidth,hh=v.clientHeight;if(!w||!hh)return;renderer.setSize(w,hh,false);camera.aspect=w/hh;camera.updateProjectionMatrix()};new ResizeObserver(resize).observe(v);resize();v.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY,rot:root.rotation.y};v.setPointerCapture(e.pointerId)});v.addEventListener('pointermove',e=>{if(drag)root.rotation.y=drag.rot+(e.clientX-drag.x)*.008});v.addEventListener('pointerup',()=>drag=null);updateRig(d);animate()}
+ function updateRig(d=dims()){if(!rig.root)return;rig.baseY=Math.max(d.thighR+d.shinR,d.thighL+d.shinL)+d.foot+.05;root.position.y=rig.baseY;rig.torso.position.y=.08;rig.chest.scale.set(d.shoulder*.46,d.trunk*.52,d.depth*.46);rig.chest.position.y=d.trunk*.49;rig.neck.position.y=d.trunk+.045;rig.head.position.y=d.trunk+.19;rig.torsoMark.position.set(0,d.trunk*.66,d.depth*.47);for(const key of Object.keys(rig.arms)){const a=rig.arms[key],ul=a.side<0?d.upperR:d.upperL,fl=a.side<0?d.foreR:d.foreL;a.shoulder.position.x=a.side*d.shoulder*.48;a.shoulder.position.y=d.trunk*.91;resizeSegment(a.upper,ul,.07,.052);a.active.position.set(a.side*.05,-ul*.78,.045);a.elbow.position.y=-ul;resizeSegment(a.fore,fl,.052,.035);a.foreMark.position.set(0,-fl*.88,.035);a.wrist.position.y=-fl;a.handMark.position.set(0,-.01,.032)}for(const key of Object.keys(rig.legs)){const l=rig.legs[key],tl=l.side<0?d.thighR:d.thighL,sl=l.side<0?d.shinR:d.shinL;l.hip.position.x=l.side*d.hip*.34;resizeSegment(l.thigh,tl,.095,.066);l.knee.position.y=-tl;resizeSegment(l.shin,sl,.065,.038);l.active.position.set(.04,-sl*.5,.04);l.ankle.position.y=-sl;l.footMark.position.set(0,.01,.075)}}
+ function resizeSegment(group,len,r1,r2){const mesh=group.children.find(c=>c.isMesh);mesh.geometry.dispose();mesh.geometry=new THREE.CylinderGeometry(r1,r2,len,18,1);mesh.position.y=-len/2;const joint=group.children.find(c=>c.isGroup);if(joint)joint.position.y=-len}
+ function pose(t){const mode=activeMotion,w=Math.sin(t*2.4),w2=Math.sin(t*2.4+Math.PI);const P={trunk:[0,0,0],arms:{},legs:{}};for(const key of Object.keys(rig.arms))P.arms[key]={shoulder:0,elbow:0,wrist:0};for(const key of Object.keys(rig.legs))P.legs[key]={hip:0,knee:0,ankle:0};if(mode==='curl'){for(const key of Object.keys(P.arms)){P.arms[key].shoulder=rig.arms[key].side<0?-.13:.1;P.arms[key].elbow=-(.15+Math.max(0,w)*1.35)}}else if(mode==='press'){for(const key of Object.keys(P.arms)){P.arms[key].shoulder=-1.95+.18*w;P.arms[key].elbow=.28}}else if(mode==='squat'){P.trunk[0]=.18;for(const key of Object.keys(P.legs)){P.legs[key].hip=.58+.1*w;P.legs[key].knee=-1.05-.12*w}}else if(mode==='run'){P.trunk[0]=.1;for(const key of Object.keys(P.legs)){const s=rig.legs[key].side,ph=s<0?w:w2;P.legs[key].hip=.45*ph;P.legs[key].knee=-Math.max(0,ph)*.75;P.legs[key].ankle=.18*ph}for(const key of Object.keys(P.arms)){const s=rig.arms[key].side,ph=s<0?w2:w;P.arms[key].shoulder=.55*ph;P.arms[key].elbow=-.75}}return P}
+ function applyPose(p,dt){if(lastPacket){const rad=Math.PI/180,get=n=>lastPacket[n]||{},torso=get('torso').pitch||0,pelvis=get('pelvis').pitch||0,body=torso-pelvis;if(get('torso').pitch!==undefined)p.trunk[0]=body*rad;if(get('torso').roll!==undefined)p.trunk[2]=get('torso').roll*rad;for(const [k,suffix] of [['brazo_der','der'],['brazo_izq','izq']]){const upper=get(k).pitch,fore=get('antebrazo_'+suffix).pitch,hand=get('mano_'+suffix).pitch;if(upper!==undefined)p.arms[k].shoulder=(upper-torso)*rad;if(fore!==undefined&&upper!==undefined)p.arms[k].elbow=(fore-upper)*rad;if(hand!==undefined&&fore!==undefined)p.arms[k].wrist=(hand-fore)*rad}for(const [k,suffix] of [['pierna_der','der'],['pierna_izq','izq']]){const thigh=get('muslo_'+suffix).pitch,shank=get(k).pitch,foot=get('pie_'+suffix).pitch;if(thigh!==undefined)p.legs[k].hip=(thigh-pelvis)*rad;if(shank!==undefined&&thigh!==undefined)p.legs[k].knee=(shank-thigh)*rad;else if(shank!==undefined)p.legs[k].knee=shank*rad;if(foot!==undefined&&shank!==undefined)p.legs[k].ankle=(foot-shank)*rad}}
+  rig.torso.rotation.x+=(p.trunk[0]-rig.torso.rotation.x)*Math.min(1,dt*8);rig.torso.rotation.z+=(p.trunk[2]-rig.torso.rotation.z)*Math.min(1,dt*8);for(const key of Object.keys(rig.arms)){const a=rig.arms[key],q=p.arms[key];a.upper.rotation.x+=(q.shoulder-a.upper.rotation.x)*Math.min(1,dt*9);a.elbow.rotation.x+=(q.elbow-a.elbow.rotation.x)*Math.min(1,dt*9);a.wrist.rotation.x+=(q.wrist-a.wrist.rotation.x)*Math.min(1,dt*9)}for(const key of Object.keys(rig.legs)){const l=rig.legs[key],q=p.legs[key];l.thigh.rotation.x+=(q.hip-l.thigh.rotation.x)*Math.min(1,dt*9);l.knee.rotation.x+=(q.knee-l.knee.rotation.x)*Math.min(1,dt*9);l.ankle.rotation.x+=(q.ankle-l.ankle.rotation.x)*Math.min(1,dt*9)}}
+ let prev=performance.now();function animate(now=performance.now()){requestAnimationFrame(animate);if(!renderer)return;const dt=Math.min((now-prev)/1000,.05);prev=now;const t=(now-start)/1000,p=pose(t);if(playing||lastPacket)applyPose(p,dt);renderer.render(scene,camera)}
+ function showAngles(pkt={}){const readouts={torso:'Torso · esternón',pelvis:'Pelvis · sacro S2',brazo_der:'Brazo superior der.',brazo_izq:'Brazo superior izq.',antebrazo_der:'Antebrazo der.',antebrazo_izq:'Antebrazo izq.',mano_der:'Mano der.',mano_izq:'Mano izq.',muslo_der:'Muslo der.',muslo_izq:'Muslo izq.',pierna_der:'Tibia der.',pierna_izq:'Tibia izq.',pie_der:'Pie der.',pie_izq:'Pie izq.'};$('angles').innerHTML=Object.entries(readouts).map(([n,label])=>{const q=pkt[n]||{};const v=Number(q.pitch||0);return `<div class="metric"><span>${label} · pitch</span><b>${v.toFixed(1)}°</b></div>`}).join('')}
+ $('apply').onclick=()=>{try{renderValues();$('saveStatus').textContent='Escala y medidas actualizadas en el maniquí'}catch{}};$('height').oninput=$('mass').oninput=$('profile').onchange=()=>{try{renderValues()}catch{}};$('customMeasures').ontoggle=()=>{try{renderValues()}catch{}};Object.values(measureIds).forEach(id=>$(id).oninput=()=>{try{renderValues()}catch{}});
+ $('save').onclick=()=>{const profile={height:$('height').value,mass:$('mass').value,profile:$('profile').value,custom:{}};for(const [key,id] of Object.entries(measureIds))profile.custom[key]=$(id).value;localStorage.setItem('wava-live-profile',JSON.stringify(profile));$('saveStatus').textContent='Perfil y medidas guardados'};$('play').onclick=()=>{playing=true;start=performance.now();$('play').textContent='▶ Movimiento activo'};$('pause').onclick=()=>{playing=false;$('play').textContent='▶ Reanudar'};$('motion').onchange=()=>{activeMotion=$('motion').value;$('motionLabel').textContent=$('motion').selectedOptions[0].text.toUpperCase()+' · DEMOSTRACIÓN';start=performance.now()};
+ $('connect').onclick=()=>{if(socket)socket.close();try{socket=new WebSocket($('wsUrl').value);$('wsStatus').textContent='Conectando…';socket.onopen=()=>{$('wsStatus').textContent='Conectado · esperando paquetes';$('wsStatus').style.color='var(--lime)'};socket.onmessage=e=>{try{lastPacket=JSON.parse(e.data);showAngles(lastPacket);$('wsStatus').textContent='Datos recibidos en vivo';$('motionLabel').textContent='ORIENTACIÓN IMU · EN VIVO'}catch{$('wsStatus').textContent='Paquete JSON no válido'}};socket.onclose=()=>{$('wsStatus').textContent='Desconectado · usando animación local';$('wsStatus').style.color='var(--orange)'};socket.onerror=()=>{$('wsStatus').textContent='Error WebSocket · verifica URL y servidor'}}catch{$('wsStatus').textContent='URL WebSocket no válida'}};
+ try{const x=JSON.parse(localStorage.getItem('wava-live-profile')||'null');if(x){$('height').value=x.height;$('mass').value=x.mass;$('profile').value=x.profile;for(const [key,id] of Object.entries(measureIds))if(x.custom&&x.custom[key])$(id).value=x.custom[key];if(x.custom&&Object.values(x.custom).some(Boolean))$('customMeasures').open=true}}catch{}renderValues();showAngles();createRig();
+})();
+</script>
+</body></html>
 
-    <!-- PANEL DE ENTRADA DE DATOS -->
-    <div id="panel-control">
-        <h2>Configuración Inicial</h2>
-        <div class="control-group">
-            <label>Masa Total del Cuerpo (kg):</label>
-            <input type="number" id="masa-total" value="70" min="1">
-        </div>
-        <div class="control-group">
-            <label>Número de Sensores IMU Disponibles:</label>
-            <select id="num-sensores" onchange="actualizarInterfazSensores()">
-                <option value="1">1 Sensor (Solo Torso/Centro)</option>
-                <option value="3">3 Sensores (Torso + Brazos)</option>
-                <option value="5" selected>5 Sensores (Torso + Extremidades completas)</option>
-            </select>
-        </div>
-        <button onclick="inicializarModeloYConexion()">Aplicar y Conectar</button>
-    </div>
-
-    <!-- PANEL DE TELEMETRÍA DINÁMICA -->
-    <div id="telemetria-cuerpo">
-        <h2>Fuerzas en Tiempo Real</h2>
-        Status: <span id="status" style="color: #ef4444; font-weight: bold;">Desconectado</span><br><br>
-        <div id="contenedor-sensores-live"></div>
-    </div>
-
-    <script>
-        // --- 1. CONFIGURACIÓN DE LA ESCENA 3D ---
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x0f141d);
-        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        document.body.appendChild(renderer.domElement);
-
-        // Luces para ver el volumen del cuerpo humano virtual
-        const light = new THREE.AmbientLight(0xffffff, 0.6); scene.add(light);
-        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8); dirLight.position.set(5, 10, 7); scene.add(dirLight);
-
-        const gridHelper = new THREE.GridHelper(40, 40, 0x334155, 0x1e293b); gridHelper.position.y = -3; scene.add(gridHelper);
-        camera.position.set(0, 2, 6);
-
-        // --- 2. MAPEO Y BIOMECÁNICA DEL CUERPO HUMANO ---
-        // Proporciones estándar de la masa corporal según la anatomía médica (Borelli/Dempster)
-        const proporcionesMasa = {
-            "torso": 0.50,       // 50% de la masa total
-            "brazo_der": 0.08,   // 8% cada brazo
-            "brazo_izq": 0.08,
-            "pierna_der": 0.17,  // 17% cada pierna
-            "pierna_izq": 0.17
-        };
-
-        let esqueleto = {}; // Guardará las referencias a las mallas 3D de cada parte del cuerpo
-        let masaConfigurada = 70;
-        let socket;
-
-        // Mapeo dinámico de los sensores según cuántos agregue el usuario
-        const configuracionesDeAsignacion = {
-            1: ["torso"],
-            3: ["torso", "brazo_der", "brazo_izq"],
-            5: ["torso", "brazo_der", "brazo_izq", "pierna_der", "pierna_izq"]
-        };
-
-        // Crear una parte del cuerpo visual (Cilindros/Esferas estilizados)
-        function crearParteCuerpo(colorHex, ancho, alto) {
-            const grupo = new THREE.Group();
-            const geometry = new THREE.CylinderGeometry(ancho, ancho, alto, 16);
-            const material = new THREE.MeshStandardMaterial({ color: colorHex, roughness: 0.4 });
-            const mesh = new THREE.Mesh(geometry, material);
-            mesh.position.y = alto / 2; // Ajustar pivote a la articulación superior
-            grupo.add(mesh);
-            return grupo;
-        }
-
-        function construirCuerpoHumanoVirtual(numSensores) {
-            // Limpiar cuerpo anterior si existe
-            if(esqueleto.torso) {
-                Object.values(esqueleto).forEach(part => scene.remove(part));
-            }
-            esqueleto = {};
-
-            // 1. Torso / Raíz
-            esqueleto["torso"] = crearParteCuerpo(0x3b82f6, 0.4, 1.8); // Azul
-            esqueleto["torso"].position.set(0, 0, 0);
-            scene.add(esqueleto["torso"]);
-
-            // 2. Extremidades opcionales según la cantidad de sensores insertados
-            if (numSensores >= 3) {
-                esqueleto["brazo_der"] = crearParteCuerpo(0x10b981, 0.15, 1.2); // Verde
-                esqueleto["brazo_der"].position.set(-0.6, 1.6, 0);
-                esqueleto["brazo_der"].rotation.z = -0.2; // Postura base relajada
-                scene.add(esqueleto["brazo_der"]);
-
-                esqueleto["brazo_izq"] = crearParteCuerpo(0x10b981, 0.15, 1.2);
-                esqueleto["brazo_izq"].position.set(0.6, 1.6, 0);
-                esqueleto["brazo_izq"].rotation.z = 0.2;
-                scene.add(esqueleto["brazo_izq"]);
-            }
-
-            if (numSensores >= 5) {
-                esqueleto["pierna_der"] = crearParteCuerpo(0xf59e0b, 0.2, 1.5); // Naranja
-                esqueleto["pierna_der"].position.set(-0.3, 0, 0);
-                scene.add(esqueleto["pierna_der"]);
-
-                esqueleto["pierna_izq"] = crearParteCuerpo(0xf59e0b, 0.2, 1.5);
-                esqueleto["pierna_izq"].position.set(0.3, 0, 0);
-                scene.add(esqueleto["pierna_izq"]);
-            }
-        }
-
-        // --- 3. INTERFAZ Y PROCESAMIENTO DINÁMICO ---
-        function actualizarInterfazSensores() {
-            const num = parseInt(document.getElementById('num-sensores').value);
-            const contenedor = document.getElementById('contenedor-sensores-live');
-            contenedor.innerHTML = "";
-            
-            configuracionesDeAsignacion[num].forEach((parte, index) => {
-                contenedor.innerHTML += `
-                    <div class="sensor-card">
-                        <strong>Sensor #${index + 1} (${parte.toUpperCase()}):</strong><br>
-                        Fuerza: <span id="f-${parte}" class="live-val">0.00</span> N<br>
-                        Giro Z: <span id="r-${parte}" class="live-val">0.0</span>°
-                    </div>
-                `;
-            });
-            construirCuerpoHumanoVirtual(num);
-        }
-
-        function inicializarModeloYConexion() {
-            masaConfigurada = parseFloat(document.getElementById('masa-total').value);
-            const numSensores = parseInt(document.getElementById('num-sensores').value);
-            
-            actualizarInterfazSensores();
-
-            // Configurar canal WebSocket (Simulación local o IP del ESP32 concentrador)
-            if(socket) socket.close();
-            
-            // Reemplaza con la IP real del microcontrolador que reciba todas las IMUs
-            socket = new WebSocket("ws://192.168.1.100/ws"); 
-
-            socket.onopen = () => {
-                document.getElementById('status').innerText = "Conectado";
-                document.getElementById('status').style.color = "#10b981";
-            };
-
-            socket.onclose = () => {
-                document.getElementById('status').innerText = "Desconectado (Simulando Local)";
-                document.getElementById('status').style.color = "#f59e0b";
-                activarSimuladorLocal(); // Si no hay hardware conectado, simula movimiento para probar la matemática
-            };
-
-            socket.onmessage = (event) => {
-                const paquete = JSON.parse(event.data);
-                procesarDatosMoCap(paquete);
-            };
-        }
-
-        function procesarDatosMoCap(paquete) {
-            // El paquete esperado debe contener lecturas indexadas por cada sensor activo, ej:
-            // {"torso": {"ax":0.1, "pitch":15}, "brazo_der": {"ax":0.8, "pitch":45}, ...}
-            
-            const partesActivas = configuracionesDeAsignacion[parseInt(document.getElementById('num-sensores').value)];
-
-            partesActivas.forEach(parte => {
-                if (paquete[parte] && esqueleto[parte]) {
-                    const datosSensor = paquete[parte];
-                    
-                    // 1. Mover la rotación del hueso en 3D
-                    esqueleto[parte].rotation.x = (datosSensor.pitch || 0) * (Math.PI / 180);
-                    esqueleto[parte].rotation.z = (datosSensor.roll || 0) * (Math.PI / 180);
